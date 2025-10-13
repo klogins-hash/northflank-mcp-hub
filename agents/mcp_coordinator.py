@@ -7,7 +7,6 @@ Specializes in service coordination, tool routing, and error handling.
 
 import os
 from typing import Optional
-from azure.ai.agent import AssistantAgent
 
 
 class MCPCoordinatorAgent:
@@ -61,22 +60,9 @@ When coordinating operations:
 4. Aggregate and format results
 5. Return clear, actionable responses"""
 
-        # Create agent with system message
-        if chat_client:
-            self.agent = AssistantAgent(
-                name=self.name,
-                model=chat_client,
-                system_message=system_message
-            )
-        else:
-            # Initialize with OpenAI or Anthropic
-            api_key = os.getenv("OPENAI_API_KEY") or os.getenv("ANTHROPIC_API_KEY")
-            if not api_key:
-                raise ValueError("No API key found. Set OPENAI_API_KEY or ANTHROPIC_API_KEY")
-
-            # Simple fallback for demo
-            self.agent = None
-            self.system_message = system_message
+        # Store system message for coordination logic
+        self.system_message = system_message
+        self.agent = None  # Using lightweight coordination without external frameworks
 
     async def coordinate_operation(self, operation: str, context: dict) -> str:
         """

@@ -28,6 +28,9 @@ wheels/
 .env.local
 .env.*.local
 
+# Secrets (used for Northflank CLI)
+.secrets/
+
 # IDE
 .vscode/
 .idea/
