@@ -1,6 +1,6 @@
 {
   "name": "mcp-hub",
-  "description": "Universal MCP integration hub for Northflank services - Python + Microsoft Agent Framework",
+  "description": "Universal MCP integration hub for Northflank services",
   "billing": {
     "deploymentPlan": "nf-compute-20"
   },
@@ -35,6 +35,7 @@
   "vcsData": {
     "projectUrl": "https://github.com/klogins-hash/northflank-mcp-hub",
     "projectType": "github",
+    "projectBranch": "master",
     "accountLogin": "klogins-hash",
     "projectId": 869127226
   },
@@ -52,10 +53,13 @@
     "prIgnoreFlagsEnabled": false
   },
   "runtimeEnvironment": {},
-  "runtimeFiles": [],
+  "runtimeFiles": {},
   "buildArguments": {},
   "healthChecks": [
     {
+      "type": "readinessProbe",
+      "protocol": "HTTP",
+      "port": 8080,
       "path": "/health",
       "initialDelaySeconds": 30,
       "periodSeconds": 10,
