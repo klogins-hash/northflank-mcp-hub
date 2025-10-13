@@ -1,0 +1,48 @@
+{
+  "variables": [
+    {
+      "key": "PORT",
+      "value": "8080"
+    },
+    {
+      "key": "MCP_SERVER_NAME",
+      "value": "northflank-mcp-hub"
+    },
+    {
+      "key": "MCP_SERVER_VERSION",
+      "value": "1.0.0"
+    },
+    {
+      "key": "LOG_LEVEL",
+      "value": "INFO"
+    },
+    {
+      "key": "ALLOWED_ORIGINS",
+      "value": "http://localhost:3080,https://web--librechat--5d689c8h7r47.code.run"
+    },
+    {
+      "key": "LIBRECHAT_URL",
+      "value": "https://web--librechat--5d689c8h7r47.code.run"
+    },
+    {
+      "key": "OPENAI_API_KEY",
+      "value": "REPLACE_WITH_YOUR_KEY",
+      "priority": 10
+    },
+    {
+      "key": "ANTHROPIC_API_KEY",
+      "value": "REPLACE_WITH_YOUR_KEY",
+      "priority": 10
+    },
+    {
+      "key": "MONGO_URI",
+      "value": "mongodb://058fd6e729a03a44:11233119620e33b09775db1f9a846fb1@mongo-0.mongodb-librechat--5d689c8h7r47.addon.code.run:27017/deedd2b3db59?replicaSet=rs0&authSource=deedd2b3db59&tls=true",
+      "priority": 10
+    },
+    {
+      "key": "REDIS_URI",
+      "value": "redis://default:f95e10448ca2ab8a6a8dfb97972bbca8@master.redis-cache--5d689c8h7r47.addon.code.run:6379",
+      "priority": 10
+    }
+  ]
+}

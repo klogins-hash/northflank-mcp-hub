@@ -1,0 +1,71 @@
+{
+  "name": "mcp-hub",
+  "description": "Universal MCP integration hub for Northflank services - Python + Microsoft Agent Framework",
+  "billing": {
+    "deploymentPlan": "nf-compute-20"
+  },
+  "deployment": {
+    "instances": 1,
+    "docker": {
+      "configType": "default"
+    },
+    "external": {
+      "imagePath": ""
+    },
+    "storage": {
+      "ephemeralStorage": {
+        "storageSize": 1024
+      },
+      "shmSize": 64
+    }
+  },
+  "ports": [
+    {
+      "name": "mcp",
+      "internalPort": 8080,
+      "public": true,
+      "protocol": "HTTP",
+      "domains": [],
+      "security": {
+        "policies": [],
+        "credentials": []
+      }
+    }
+  ],
+  "vcsData": {
+    "projectUrl": "https://github.com/klogins-hash/northflank-mcp-hub",
+    "projectType": "github",
+    "accountLogin": "klogins-hash",
+    "projectId": 869127226
+  },
+  "buildSettings": {
+    "dockerfile": {
+      "buildEngine": "kaniko",
+      "dockerFilePath": "/Dockerfile",
+      "dockerWorkDir": "/"
+    }
+  },
+  "buildConfiguration": {
+    "pathIgnoreRules": [],
+    "isAllowList": false,
+    "ciIgnoreFlagsEnabled": false,
+    "prIgnoreFlagsEnabled": false
+  },
+  "runtimeEnvironment": {},
+  "runtimeFiles": [],
+  "buildArguments": {},
+  "healthChecks": [
+    {
+      "path": "/health",
+      "initialDelaySeconds": 30,
+      "periodSeconds": 10,
+      "timeoutSeconds": 5,
+      "successThreshold": 1,
+      "failureThreshold": 3
+    }
+  ],
+  "scaling": {
+    "minReplicas": 1,
+    "maxReplicas": 1
+  }
+}
