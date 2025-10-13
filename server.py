@@ -20,6 +20,8 @@ from agents.database_agent import DatabaseAgent
 from agents.service_agent import ServiceAgent
 from agents.workflow_agent import WorkflowAgent
 from agents.integration_agent import IntegrationAgent
+from agents.intelligent_router_agent import IntelligentRouterAgent
+from federation.mcp_federation_manager import MCPFederationManager
 
 # Configure logging
 logging.basicConfig(
@@ -28,16 +30,26 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Global agent team
+# Global agent team and federation
 agent_team = {}
+federation_manager: Optional[MCPFederationManager] = None
+router_agent: Optional[IntelligentRouterAgent] = None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Startup and shutdown lifecycle."""
-    global agent_team
+    global agent_team, federation_manager, router_agent
 
     logger.info("🚀 Starting Northflank MCP Hub...")
+
+    # Initialize federation manager
+    try:
+        federation_manager = MCPFederationManager()
+        await federation_manager.start()
+        logger.info("✅ Federation manager initialized")
+    except Exception as e:
+        logger.error(f"❌ Error initializing federation manager: {e}")
 
     # Initialize agent team
     try:
@@ -50,20 +62,37 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Error initializing agents: {e}")
 
+    # Initialize intelligent router agent
+    try:
+        router_agent = IntelligentRouterAgent(federation_manager)
+        agent_team["router"] = router_agent
+        logger.info("✅ Intelligent router agent initialized")
+    except Exception as e:
+        logger.error(f"❌ Error initializing router agent: {e}")
+
     # Check for API keys
     has_openai = os.getenv("OPENAI_API_KEY")
     has_anthropic = os.getenv("ANTHROPIC_API_KEY")
+    has_groq = os.getenv("GROQ_API_KEY")
 
     if not has_openai and not has_anthropic:
-        logger.warning("⚠️  No AI API keys found - agents will use fallback mode")
+        logger.warning("⚠️  No OpenAI/Anthropic API keys found - agents will use fallback mode")
     else:
         logger.info("✅ AI API keys configured")
+
+    if has_groq:
+        logger.info("✅ Groq API key configured - intelligent routing enabled")
+    else:
+        logger.warning("⚠️  No Groq API key - using fallback routing")
 
     logger.info(f"🎯 MCP Hub ready on port {PORT}")
 
     yield
 
+    # Shutdown
     logger.info("Shutting down Northflank MCP Hub...")
+    if federation_manager:
+        await federation_manager.stop()
 
 
 # Create FastAPI app
@@ -386,6 +415,131 @@ async def consult_agents(request: ConsultRequest):
     except Exception as e:
         logger.error(f"Agent consultation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# FEDERATION ENDPOINTS
+# ============================================================================
+
+class RegisterServerRequest(BaseModel):
+    """Request to register an external MCP server."""
+    name: str
+    url: str
+    description: str = ""
+    auth_type: Optional[str] = None
+    auth_token: Optional[str] = None
+    metadata: Optional[dict] = None
+
+
+class RouteRequest(BaseModel):
+    """Request for intelligent routing."""
+    request: str
+    context: Optional[dict] = None
+
+
+@app.post("/federation/register")
+async def register_mcp_server(req: RegisterServerRequest):
+    """Register an external MCP server for federation."""
+    if not federation_manager:
+        raise HTTPException(status_code=503, detail="Federation manager not initialized")
+
+    success = await federation_manager.register_server(
+        name=req.name,
+        url=req.url,
+        description=req.description,
+        auth_type=req.auth_type,
+        auth_token=req.auth_token,
+        metadata=req.metadata
+    )
+
+    if success:
+        return {
+            "success": True,
+            "message": f"Server {req.name} registered successfully",
+            "server": federation_manager.get_server_info(req.name)
+        }
+    else:
+        raise HTTPException(status_code=400, detail="Failed to register server")
+
+
+@app.delete("/federation/servers/{server_name}")
+async def unregister_mcp_server(server_name: str):
+    """Unregister an MCP server."""
+    if not federation_manager:
+        raise HTTPException(status_code=503, detail="Federation manager not initialized")
+
+    success = await federation_manager.unregister_server(server_name)
+
+    if success:
+        return {"success": True, "message": f"Server {server_name} unregistered"}
+    else:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+
+@app.get("/federation/servers")
+async def list_federated_servers():
+    """List all registered MCP servers."""
+    if not federation_manager:
+        raise HTTPException(status_code=503, detail="Federation manager not initialized")
+
+    return {
+        "servers": federation_manager.list_servers(),
+        "stats": federation_manager.get_stats()
+    }
+
+
+@app.get("/federation/servers/{server_name}")
+async def get_server_info(server_name: str):
+    """Get detailed information about a specific MCP server."""
+    if not federation_manager:
+        raise HTTPException(status_code=503, detail="Federation manager not initialized")
+
+    info = federation_manager.get_server_info(server_name)
+    if info:
+        return info
+    else:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+
+@app.post("/federation/route")
+async def intelligent_route(req: RouteRequest):
+    """
+    Intelligently route a request to the appropriate MCP server.
+    Uses Groq-powered agent to determine routing.
+    """
+    if not router_agent:
+        raise HTTPException(status_code=503, detail="Router agent not initialized")
+
+    try:
+        result = await router_agent.run(req.request, req.context)
+        return result
+    except Exception as e:
+        logger.error(f"Routing error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/federation/tools")
+async def list_all_federated_tools():
+    """List all tools from all federated servers (with namespacing)."""
+    if not federation_manager:
+        raise HTTPException(status_code=503, detail="Federation manager not initialized")
+
+    return {
+        "tools": federation_manager.get_all_tools(),
+        "total": len(federation_manager.get_all_tools())
+    }
+
+
+@app.get("/federation/resources")
+async def list_all_federated_resources():
+    """List all resources from all federated servers (with namespacing)."""
+    if not federation_manager:
+        raise HTTPException(status_code=503, detail="Federation manager not initialized")
+
+    return {
+        "resources": federation_manager.get_all_resources(),
+        "total": len(federation_manager.get_all_resources())
+    }
 
 
 if __name__ == "__main__":

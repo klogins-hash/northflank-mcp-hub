@@ -10,6 +10,7 @@ mcp>=1.17.0
 # AI/LLM clients (optional for advanced agent features)
 openai>=1.58.0
 anthropic>=0.40.0
+groq>=0.11.0
 
 # Database clients
 pymongo>=4.10.0
