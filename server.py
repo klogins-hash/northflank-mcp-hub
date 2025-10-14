@@ -221,12 +221,63 @@ async def mcp_endpoint(request: MCPRequest):
             from tools.librechat_tools import LibreChatTools
             from tools.workflow_tools import WorkflowTools
             from tools.service_discovery import get_discovery
+            from tools.northflank_exec_tools import NorthflankExecTools
 
             # Get dynamically discovered services
             discovery = get_discovery()
             dynamic_tools = await discovery.generate_service_tools()
 
             tools = [
+                # Northflank ms-agent-team interaction
+                {
+                    "name": "northflank_chat",
+                    "description": "Chat with the ms-agent-team service on Northflank",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "message": {"type": "string", "description": "Message to send to agent team"},
+                            "service_id": {"type": "string", "default": "ms-agent-team"},
+                            "project_id": {"type": "string", "default": "gerry-adams-revolt"}
+                        },
+                        "required": ["message"]
+                    }
+                },
+                {
+                    "name": "northflank_exec",
+                    "description": "Execute command on Northflank service (ms-agent-team by default)",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "command": {"type": "string", "description": "Command to execute"},
+                            "service_id": {"type": "string", "default": "ms-agent-team"},
+                            "project_id": {"type": "string", "default": "gerry-adams-revolt"}
+                        },
+                        "required": ["command"]
+                    }
+                },
+                {
+                    "name": "northflank_get_logs",
+                    "description": "Get logs from ms-agent-team service",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "lines": {"type": "integer", "default": 100},
+                            "service_id": {"type": "string", "default": "ms-agent-team"},
+                            "project_id": {"type": "string", "default": "gerry-adams-revolt"}
+                        }
+                    }
+                },
+                {
+                    "name": "northflank_service_info",
+                    "description": "Get information about ms-agent-team service",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "service_id": {"type": "string", "default": "ms-agent-team"},
+                            "project_id": {"type": "string", "default": "gerry-adams-revolt"}
+                        }
+                    }
+                },
                 # Service Coordination
                 {
                     "name": "coordinate_services",
@@ -409,9 +460,13 @@ async def mcp_endpoint(request: MCPRequest):
             from tools.rabbitmq_tools import RabbitMQTools
             from tools.generic_service_tools import GenericServiceTools
             from tools.service_discovery import get_discovery
+            from tools.northflank_exec_tools import NorthflankExecTools
 
+            # Northflank ms-agent-team interaction
+            if tool_name in ["northflank_chat", "northflank_exec", "northflank_get_logs", "northflank_service_info"]:
+                result = await NorthflankExecTools.handle(tool_name, tool_args)
             # Service coordination and discovery
-            if tool_name in ["coordinate_services", "health_check_all", "list_northflank_services", "get_service_info"]:
+            elif tool_name in ["coordinate_services", "health_check_all", "list_northflank_services", "get_service_info"]:
                 result = await ServiceTools.handle(tool_name, tool_args)
             elif tool_name == "discover_services":
                 discovery = get_discovery()
