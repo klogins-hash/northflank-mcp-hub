@@ -34,9 +34,10 @@ class MinIOTools:
     @staticmethod
     async def list_buckets() -> str:
         """List all MinIO buckets."""
-        minio_url = os.getenv("MINIO_URL")
-        access_key = os.getenv("MINIO_ACCESS_KEY")
-        secret_key = os.getenv("MINIO_SECRET_KEY")
+        # Support both MINIO_* and AWS_* environment variables
+        minio_url = os.getenv("MINIO_URL") or os.getenv("NF_MINIO_MINIO_ENDPOINT") or os.getenv("AWS_ENDPOINT_URL")
+        access_key = os.getenv("MINIO_ACCESS_KEY") or os.getenv("NF_MINIO_ACCESS_KEY") or os.getenv("AWS_ACCESS_KEY_ID")
+        secret_key = os.getenv("MINIO_SECRET_KEY") or os.getenv("NF_MINIO_SECRET_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
 
         if not all([minio_url, access_key, secret_key]):
             return "MinIO not configured. Set MINIO_URL, MINIO_ACCESS_KEY, MINIO_SECRET_KEY."
@@ -60,9 +61,9 @@ class MinIOTools:
     @staticmethod
     async def list_objects(bucket: str) -> str:
         """List objects in a MinIO bucket."""
-        minio_url = os.getenv("MINIO_URL")
-        access_key = os.getenv("MINIO_ACCESS_KEY")
-        secret_key = os.getenv("MINIO_SECRET_KEY")
+        minio_url = os.getenv("MINIO_URL") or os.getenv("NF_MINIO_MINIO_ENDPOINT") or os.getenv("AWS_ENDPOINT_URL")
+        access_key = os.getenv("MINIO_ACCESS_KEY") or os.getenv("NF_MINIO_ACCESS_KEY") or os.getenv("AWS_ACCESS_KEY_ID")
+        secret_key = os.getenv("MINIO_SECRET_KEY") or os.getenv("NF_MINIO_SECRET_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
 
         if not all([minio_url, access_key, secret_key]):
             return "MinIO not configured."
@@ -83,9 +84,9 @@ class MinIOTools:
     @staticmethod
     async def get_object(bucket: str, object_key: str) -> str:
         """Get an object from MinIO."""
-        minio_url = os.getenv("MINIO_URL")
-        access_key = os.getenv("MINIO_ACCESS_KEY")
-        secret_key = os.getenv("MINIO_SECRET_KEY")
+        minio_url = os.getenv("MINIO_URL") or os.getenv("NF_MINIO_MINIO_ENDPOINT") or os.getenv("AWS_ENDPOINT_URL")
+        access_key = os.getenv("MINIO_ACCESS_KEY") or os.getenv("NF_MINIO_ACCESS_KEY") or os.getenv("AWS_ACCESS_KEY_ID")
+        secret_key = os.getenv("MINIO_SECRET_KEY") or os.getenv("NF_MINIO_SECRET_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
 
         if not all([minio_url, access_key, secret_key]):
             return "MinIO not configured."
@@ -110,9 +111,9 @@ class MinIOTools:
     @staticmethod
     async def put_object(bucket: str, object_key: str, data: str) -> str:
         """Put an object into MinIO."""
-        minio_url = os.getenv("MINIO_URL")
-        access_key = os.getenv("MINIO_ACCESS_KEY")
-        secret_key = os.getenv("MINIO_SECRET_KEY")
+        minio_url = os.getenv("MINIO_URL") or os.getenv("NF_MINIO_MINIO_ENDPOINT") or os.getenv("AWS_ENDPOINT_URL")
+        access_key = os.getenv("MINIO_ACCESS_KEY") or os.getenv("NF_MINIO_ACCESS_KEY") or os.getenv("AWS_ACCESS_KEY_ID")
+        secret_key = os.getenv("MINIO_SECRET_KEY") or os.getenv("NF_MINIO_SECRET_KEY") or os.getenv("AWS_SECRET_ACCESS_KEY")
 
         if not all([minio_url, access_key, secret_key]):
             return "MinIO not configured."
