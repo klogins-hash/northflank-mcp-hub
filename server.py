@@ -22,6 +22,7 @@ from agents.workflow_agent import WorkflowAgent
 from agents.integration_agent import IntegrationAgent
 from agents.intelligent_router_agent import IntelligentRouterAgent
 from federation.mcp_federation_manager import MCPFederationManager
+from middleware.auth import APIKeyMiddleware
 
 # Configure logging
 logging.basicConfig(
@@ -111,6 +112,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add API Key authentication middleware
+api_key = os.getenv("MCP_API_KEY")
+if api_key:
+    app.add_middleware(APIKeyMiddleware, api_key=api_key)
+    logger.info("🔒 API Key authentication enabled")
+else:
+    logger.warning("⚠️  No MCP_API_KEY set - authentication disabled (NOT recommended for production)")
 
 
 # Request/Response models
