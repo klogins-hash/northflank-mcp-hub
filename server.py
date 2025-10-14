@@ -145,13 +145,16 @@ async def root():
             "/docs": "Interactive API docs"
         },
         "capabilities": {
-            "tools": 12,
+            "tools": "20+ (with auto-discovery)",
             "resources": 4,
             "prompts": 3,
-            "agents": 5
+            "agents": 5,
+            "auto_discovery": True
         },
         "services": [
-            "LibreChat", "MongoDB", "Redis", "MinIO", "MS-Agent-Team"
+            "LibreChat", "MongoDB", "Redis", "PostgreSQL", "MinIO", "RabbitMQ",
+            "MS-Agent-Team", "Voice-Agent-Revolt", "Mattermost", "Token-Server",
+            "...and auto-discovered services"
         ]
     }
 
@@ -208,8 +211,14 @@ async def mcp_endpoint(request: MCPRequest):
             from tools.database_tools import DatabaseTools
             from tools.librechat_tools import LibreChatTools
             from tools.workflow_tools import WorkflowTools
+            from tools.service_discovery import get_discovery
+
+            # Get dynamically discovered services
+            discovery = get_discovery()
+            dynamic_tools = await discovery.generate_service_tools()
 
             tools = [
+                # Service Coordination
                 {
                     "name": "coordinate_services",
                     "description": "Coordinate operations between multiple services",
@@ -220,6 +229,26 @@ async def mcp_endpoint(request: MCPRequest):
                     "description": "Check health of all services",
                     "inputSchema": {"type": "object"}
                 },
+                {
+                    "name": "discover_services",
+                    "description": "Discover all available services and addons in the project",
+                    "inputSchema": {"type": "object"}
+                },
+                {
+                    "name": "call_service",
+                    "description": "Call any service by name with custom endpoint",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "service_name": {"type": "string", "description": "Service name"},
+                            "endpoint": {"type": "string", "description": "API endpoint", "default": "/"},
+                            "method": {"type": "string", "enum": ["GET", "POST", "PUT", "DELETE"], "default": "GET"},
+                            "data": {"type": "object", "description": "Request body"}
+                        },
+                        "required": ["service_name"]
+                    }
+                },
+                # MongoDB
                 {
                     "name": "mongo_query",
                     "description": "Execute MongoDB query",
@@ -232,6 +261,7 @@ async def mcp_endpoint(request: MCPRequest):
                         "required": ["collection", "operation"]
                     }
                 },
+                # Redis
                 {
                     "name": "redis_get",
                     "description": "Get value from Redis",
@@ -253,6 +283,73 @@ async def mcp_endpoint(request: MCPRequest):
                         "required": ["key", "value"]
                     }
                 },
+                # PostgreSQL
+                {
+                    "name": "postgres_query",
+                    "description": "Execute PostgreSQL query",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string"},
+                            "params": {"type": "array"}
+                        },
+                        "required": ["query"]
+                    }
+                },
+                {
+                    "name": "postgres_vector_search",
+                    "description": "Perform pgvector similarity search",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "table": {"type": "string"},
+                            "vector": {"type": "array"},
+                            "limit": {"type": "integer", "default": 10}
+                        },
+                        "required": ["table", "vector"]
+                    }
+                },
+                # MinIO
+                {
+                    "name": "minio_list_buckets",
+                    "description": "List all MinIO buckets",
+                    "inputSchema": {"type": "object"}
+                },
+                {
+                    "name": "minio_list_objects",
+                    "description": "List objects in a MinIO bucket",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {"bucket": {"type": "string"}},
+                        "required": ["bucket"]
+                    }
+                },
+                # RabbitMQ
+                {
+                    "name": "rabbitmq_publish",
+                    "description": "Publish message to RabbitMQ queue",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "queue": {"type": "string"},
+                            "message": {"type": "object"}
+                        },
+                        "required": ["queue", "message"]
+                    }
+                },
+                {
+                    "name": "rabbitmq_consume",
+                    "description": "Consume messages from RabbitMQ queue",
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "queue": {"type": "string"},
+                            "count": {"type": "integer", "default": 1}
+                        },
+                        "required": ["queue"]
+                    }
+                },
+                # LibreChat
                 {
                     "name": "librechat_send_message",
                     "description": "Send message to LibreChat",
@@ -262,6 +359,7 @@ async def mcp_endpoint(request: MCPRequest):
                         "required": ["message"]
                     }
                 },
+                # Workflows
                 {
                     "name": "create_workflow",
                     "description": "Create multi-step workflow",
@@ -275,6 +373,9 @@ async def mcp_endpoint(request: MCPRequest):
                     }
                 }
             ]
+
+            # Add dynamically discovered service tools
+            tools.extend(dynamic_tools)
 
             return {
                 "jsonrpc": "2.0",
@@ -294,15 +395,40 @@ async def mcp_endpoint(request: MCPRequest):
             from tools.database_tools import DatabaseTools
             from tools.librechat_tools import LibreChatTools
             from tools.workflow_tools import WorkflowTools
+            from tools.postgres_tools import PostgresTools
+            from tools.minio_tools import MinIOTools
+            from tools.rabbitmq_tools import RabbitMQTools
+            from tools.generic_service_tools import GenericServiceTools
+            from tools.service_discovery import get_discovery
 
+            # Service coordination and discovery
             if tool_name in ["coordinate_services", "health_check_all", "list_northflank_services", "get_service_info"]:
                 result = await ServiceTools.handle(tool_name, tool_args)
+            elif tool_name == "discover_services":
+                discovery = get_discovery()
+                discovery_result = await discovery.discover_all()
+                result = f"Discovered {discovery_result['total_services']} services and {discovery_result['total_addons']} addons"
+            # MongoDB & Redis
             elif tool_name in ["mongo_query", "redis_get", "redis_set"]:
                 result = await DatabaseTools.handle(tool_name, tool_args)
+            # PostgreSQL
+            elif tool_name in ["postgres_query", "postgres_execute", "postgres_vector_search"]:
+                result = await PostgresTools.handle(tool_name, tool_args)
+            # MinIO
+            elif tool_name in ["minio_list_buckets", "minio_list_objects", "minio_get_object", "minio_put_object"]:
+                result = await MinIOTools.handle(tool_name, tool_args)
+            # RabbitMQ
+            elif tool_name in ["rabbitmq_publish", "rabbitmq_consume", "rabbitmq_queue_info", "rabbitmq_declare_queue"]:
+                result = await RabbitMQTools.handle(tool_name, tool_args)
+            # LibreChat
             elif tool_name in ["librechat_send_message", "librechat_get_config"]:
                 result = await LibreChatTools.handle(tool_name, tool_args)
+            # Workflows
             elif tool_name in ["create_workflow", "execute_workflow"]:
                 result = await WorkflowTools.handle(tool_name, tool_args)
+            # Generic service calls (including dynamically discovered services)
+            elif tool_name == "call_service" or tool_name.startswith("call_"):
+                result = await GenericServiceTools.handle(tool_name, tool_args)
             else:
                 result = f"Unknown tool: {tool_name}"
 
