@@ -34,60 +34,43 @@ class MSAgentTeamTools:
     async def chat(message: str, context: dict = None) -> str:
         """
         Send a message to the agent team and get a response.
+        Uses the /consult endpoint with format: {"question": message, "specialist": null}
         """
         try:
             if not message:
                 return "Error: Message is required"
 
             async with aiohttp.ClientSession() as session:
-                # Try different possible endpoints
-                endpoints = [
-                    "/chat",
-                    "/api/chat",
-                    "/message",
-                    "/api/message",
-                    "/",
-                ]
+                url = f"{MSAgentTeamTools.BASE_URL}/consult"
 
+                # The service expects "question" and "specialist" fields
                 payload = {
-                    "message": message,
-                    "context": context or {}
+                    "question": message,
+                    "specialist": context.get("specialist") if context else None
                 }
 
-                last_error = None
-
-                for endpoint in endpoints:
-                    url = f"{MSAgentTeamTools.BASE_URL}{endpoint}"
-
-                    try:
-                        # Try POST request
-                        async with session.post(
-                            url,
-                            json=payload,
-                            timeout=aiohttp.ClientTimeout(total=30)
-                        ) as response:
-                            if response.status == 200:
-                                result = await response.json()
-                                return f"Agent Team Response (via {endpoint}):\n\n{json.dumps(result, indent=2)}"
-                            elif response.status == 404:
-                                continue  # Try next endpoint
-                            else:
-                                text = await response.text()
-                                last_error = f"HTTP {response.status}: {text[:200]}"
-                    except Exception as e:
-                        last_error = str(e)
-                        continue
-
-                # If all endpoints failed, try GET on root to see what's available
                 try:
-                    async with session.get(
-                        MSAgentTeamTools.BASE_URL,
-                        timeout=aiohttp.ClientTimeout(total=10)
+                    async with session.post(
+                        url,
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                        timeout=aiohttp.ClientTimeout(total=60)
                     ) as response:
-                        info = await response.text()
-                        return f"Could not find chat endpoint. Service responded with:\n\n{info[:500]}\n\nLast error: {last_error}\n\nTried endpoints: {', '.join(endpoints)}"
+                        if response.status == 200:
+                            result = await response.json()
+                            # Extract the answer from the response
+                            answer = result.get("answer", result)
+                            specialist = result.get("specialist", "unknown")
+
+                            return f"🤖 Agent Team Response (Specialist: {specialist}):\n\n{answer}"
+                        else:
+                            text = await response.text()
+                            return f"Error: HTTP {response.status}\n{text[:500]}"
+
+                except aiohttp.ClientTimeout:
+                    return "Error: Request timed out after 60 seconds. The agent team may be processing a complex query."
                 except Exception as e:
-                    return f"Error: Service unreachable. Last error: {last_error}\nConnection error: {str(e)}"
+                    return f"Error connecting to agent team: {str(e)}"
 
         except Exception as e:
             return f"Error chatting with agent team: {str(e)}"
@@ -150,36 +133,41 @@ class MSAgentTeamTools:
 
     @staticmethod
     async def query_agent(agent_name: str, query: str) -> str:
-        """Query a specific agent by name."""
+        """Query a specific agent by name using the /consult endpoint with specialist parameter."""
         try:
             if not agent_name or not query:
                 return "Error: Both agent_name and query are required"
 
             async with aiohttp.ClientSession() as session:
-                endpoints = [
-                    f"/agents/{agent_name}",
-                    f"/api/agents/{agent_name}",
-                    f"/agent/{agent_name}",
-                ]
+                url = f"{MSAgentTeamTools.BASE_URL}/consult"
 
-                payload = {"query": query}
+                # Use the specialist parameter to target specific agent
+                payload = {
+                    "question": query,
+                    "specialist": agent_name
+                }
 
-                for endpoint in endpoints:
-                    url = f"{MSAgentTeamTools.BASE_URL}{endpoint}"
+                try:
+                    async with session.post(
+                        url,
+                        json=payload,
+                        headers={"Content-Type": "application/json"},
+                        timeout=aiohttp.ClientTimeout(total=60)
+                    ) as response:
+                        if response.status == 200:
+                            result = await response.json()
+                            answer = result.get("answer", result)
+                            specialist = result.get("specialist", agent_name)
 
-                    try:
-                        async with session.post(
-                            url,
-                            json=payload,
-                            timeout=aiohttp.ClientTimeout(total=30)
-                        ) as response:
-                            if response.status == 200:
-                                result = await response.json()
-                                return f"Agent '{agent_name}' Response:\n{json.dumps(result, indent=2)}"
-                    except:
-                        continue
+                            return f"🎯 Agent '{specialist}' Response:\n\n{answer}"
+                        else:
+                            text = await response.text()
+                            return f"Error: HTTP {response.status}\n{text[:500]}"
 
-                return f"Error: Could not query agent '{agent_name}'"
+                except aiohttp.ClientTimeout:
+                    return f"Error: Request to agent '{agent_name}' timed out after 60 seconds."
+                except Exception as e:
+                    return f"Error connecting to agent '{agent_name}': {str(e)}"
 
         except Exception as e:
             return f"Error querying agent: {str(e)}"
